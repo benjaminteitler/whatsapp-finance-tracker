@@ -1,12 +1,28 @@
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const { GROUP_ID } = require('./config');
 const { handleMessage } = require('./handler');
+const path = require('path');
 
 console.log('Starting WhatsApp client...');
+
+const sessionPath = process.env.SESSION_PATH || './session';
+console.log('Session path:', path.resolve(sessionPath));
+
 const client = new Client({
-  authStrategy: new LocalAuth(),
+  authStrategy: new LocalAuth({ dataPath: sessionPath }),
   puppeteer: {
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    headless: true,
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-accelerated-2d-canvas',
+      '--no-first-run',
+      '--no-zygote',
+      '--single-process',
+      '--disable-gpu',
+    ],
   },
 });
 
@@ -31,6 +47,22 @@ client.on('auth_failure', (msg) => {
 
 client.on('disconnected', (reason) => {
   console.error('WhatsApp client disconnected:', reason);
+});
+
+client.on('loading_screen', (percent, message) => {
+  console.log('Loading:', percent, '%', message);
+});
+
+client.on('authenticated', () => {
+  console.log('WhatsApp client authenticated successfully!');
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
 });
 
 module.exports = client;
